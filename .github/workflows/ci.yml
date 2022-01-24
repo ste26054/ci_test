@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v2
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@master
+        with:
+          install: true
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache-test
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Test Image
+        uses: docker/build-push-action@v2
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          cache-from: type=local,src=/tmp/.buildx-cache-test
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-test-new
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: ci_test:latest
+
+      - name: Move Test cache
+        run: |
+          rm -rf /tmp/.buildx-cache-test
+          mv /tmp/.buildx-cache-test-new /tmp/.buildx-cache-test
+
+      - name: Run Specs with docker compose run
+        run: |
+          echo "***** GOING TO RUN DOCKER COMPOSE RUN. LOGS ARE EXPECTED BELOW THIS LINE *****"
+          docker compose -p ci_test -f docker-compose.test.yml run --name ci_test_output ci_test sh run-tests.sh
+          echo "******************* AFTER DOCKER COMPOSE *******************"
+          echo "*******************"
+          echo "*******************"
+          echo "*******************"
+          echo "*******************"
+          echo "*******************"
+          echo "*******************"
+          echo "********* LOGS THAT SHOULD HAVE BEEN OUTPUT IN PREVIOUS STEP (reading from docker logs): *********"
+          docker logs ci_test_output
+
+      - name: Run Specs with docker run
+        run: |
+          echo "GOING TO DOCKER RUN"
+          docker run ci_test:latest sh run-tests.sh
