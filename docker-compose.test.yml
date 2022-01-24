@@ -1,0 +1,18 @@
+
+version: "3.9"
+services:
+  ci_test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    image: ci_test
+    init: true
+    volumes:
+      - .:/app
+      - tmp_cache:/app/tmp
+    environment:
+      RAILS_ENV: test
+
+volumes:
+  tmp_cache:
